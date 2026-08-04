@@ -1,0 +1,3 @@
+"""
+components subpackage init.
+"""
