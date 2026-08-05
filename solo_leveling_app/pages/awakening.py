@@ -1,313 +1,678 @@
 """
-pages/awakening.py — Multi-step onboarding / The Awakening flow.
+pages/awakening.py — Full-screen cinematic onboarding experience.
+
+Steps:
+  0 → Reawakening intro animation  (click to proceed)
+  1 → Name + physical aim          (Enter / Continue)
+  2 → Class selection split-screen (click to choose)
+  3 → Daily target + custom quests (Continue)
+  4 → Extracurriculars             (Continue / Skip)
+  5 → Commitment plan preview      (Awaken)
 """
 import reflex as rx
 from solo_leveling_app.state import AppState
 
 
-def _step_dot(step: int, label: str) -> rx.Component:
-    is_active = AppState.onboarding_step == step
-    is_done   = AppState.onboarding_step > step
-    return rx.vstack(
-        rx.box(
-            rx.cond(
-                is_done,
-                rx.text("✓", class_name="text-[11px] font-black text-system-black"),
-                rx.text(str(step), class_name="text-[11px] font-bold system-font"),
-            ),
-            class_name=rx.cond(
-                is_done,
-                "w-7 h-7 rounded-full flex items-center justify-center bg-neon-blue text-black",
-                rx.cond(
-                    is_active,
-                    "w-7 h-7 rounded-full flex items-center justify-center border-2 border-neon-blue "
-                    "text-neon-blue neon-blue-glow",
-                    "w-7 h-7 rounded-full flex items-center justify-center border border-slate-700 text-slate-600",
-                ),
-            ),
-        ),
-        rx.text(
-            label,
-            class_name=rx.cond(
-                is_active,
-                "text-[10px] neon-text-blue hidden sm:block tracking-wider",
-                "text-[10px] text-slate-700 hidden sm:block tracking-wider",
-            ),
-        ),
-        align="center",
-        gap="1",
+# ── Step progress dots ─────────────────────────────────────────────
+
+def _step_dots(current: int) -> rx.Component:
+    """Small progress indicators shown on steps 1-5."""
+    total = 5
+    dots = []
+    for i in range(1, total + 1):
+        cls = rx.cond(
+            current == i,
+            "step-dot step-dot-active",
+            rx.cond(current > i, "step-dot step-dot-done", "step-dot"),
+        )
+        dots.append(rx.box(class_name=cls))
+    return rx.hstack(*dots, gap="8px",
+                     class_name="fixed top-8 left-1/2 -translate-x-1/2 z-50")
+
+
+# ── Step label ────────────────────────────────────────────────────
+
+def _step_label(text: str) -> rx.Component:
+    return rx.text(
+        text,
+        class_name="awaken-sub mb-6",
     )
 
 
-def _step_line() -> rx.Component:
-    return rx.box(class_name="flex-1 h-px bg-system-border mt-3.5")
+# ══════════════════════════════════════════════════════════════════
+# SCREEN 0 — REAWAKENING INTRO
+# ══════════════════════════════════════════════════════════════════
 
-
-def step_indicator() -> rx.Component:
-    steps = [
-        (1, "IDENTITY"),
-        (2, "ALGORITHM"),
-        (3, "DEV"),
-        (4, "VERIFY"),
-        (5, "NEGOTIATE"),
-    ]
-    children = []
-    for i, (n, label) in enumerate(steps):
-        children.append(_step_dot(n, label))
-        if i < len(steps) - 1:
-            children.append(_step_line())
-    return rx.hstack(*children, align="center", width="100%", class_name="mb-8")
-
-
-# ── Step panels ──
-
-def step_1() -> rx.Component:
-    return rx.vstack(
-        rx.text("[ STEP 1: HUNTER IDENTIFICATION ]",
-                class_name="system-font neon-text-blue text-xs tracking-widest mb-1"),
-        rx.text("State your name and fitness ambition, Hunter.",
-                class_name="text-slate-500 text-xs mb-4"),
-        rx.box(
-            rx.text("HUNTER DESIGNATION", class_name="text-[10px] text-slate-500 tracking-widest mb-1"),
-            rx.input(placeholder="Enter your name...", value=AppState.user_name,
-                     on_change=AppState.set_user_name, class_name="system-input"),
-            class_name="w-full",
-        ),
-        rx.box(
-            rx.text("FITNESS OBJECTIVE", class_name="text-[10px] text-slate-500 tracking-widest mb-1"),
-            rx.text_area(
-                placeholder="e.g. Build calisthenics strength, run 5km daily, lose 10kg...",
-                value=AppState.fitness_goal, on_change=AppState.set_fitness_goal,
-                class_name="system-input", rows="4",
-            ),
-            class_name="w-full",
-        ),
-        gap="4", width="100%",
-    )
-
-
-def step_2() -> rx.Component:
-    return rx.vstack(
-        rx.text("[ STEP 2: ALGORITHMIC WARFARE ]",
-                class_name="system-font neon-text-blue text-xs tracking-widest mb-1"),
-        rx.text("Set your LeetCode quotas. The System will enforce them.",
-                class_name="text-slate-500 text-xs mb-4"),
-        rx.grid(
-            rx.box(
-                rx.text("DAILY", class_name="text-[10px] text-slate-500 tracking-widest mb-1"),
-                rx.input(placeholder="3", value=AppState.dsa_daily,
-                         on_change=AppState.set_dsa_daily, type="number", class_name="system-input"),
-                class_name="w-full",
-            ),
-            rx.box(
-                rx.text("WEEKLY", class_name="text-[10px] text-slate-500 tracking-widest mb-1"),
-                rx.input(placeholder="21", value=AppState.dsa_weekly,
-                         on_change=AppState.set_dsa_weekly, type="number", class_name="system-input"),
-                class_name="w-full",
-            ),
-            rx.box(
-                rx.text("MONTHLY", class_name="text-[10px] text-slate-500 tracking-widest mb-1"),
-                rx.input(placeholder="90", value=AppState.dsa_monthly,
-                         on_change=AppState.set_dsa_monthly, type="number", class_name="system-input"),
-                class_name="w-full",
-            ),
-            columns="3", gap="3", width="100%",
-        ),
-        gap="4", width="100%",
-    )
-
-
-def step_3() -> rx.Component:
-    return rx.vstack(
-        rx.text("[ STEP 3: DEVELOPMENT MANDATE ]",
-                class_name="system-font neon-text-blue text-xs tracking-widest mb-1"),
-        rx.text("What will you build? Commit to it now or face consequences.",
-                class_name="text-slate-500 text-xs mb-4"),
-        rx.box(
-            rx.text("WEEKLY PROJECT OBJECTIVE", class_name="text-[10px] text-slate-500 tracking-widest mb-1"),
-            rx.text_area(
-                placeholder="e.g. Ship 1 deployable feature per week, 300+ lines committed...",
-                value=AppState.dev_goal, on_change=AppState.set_dev_goal,
-                class_name="system-input", rows="4",
-            ),
-            class_name="w-full",
-        ),
-        rx.box(
-            rx.text("EXTRACURRICULARS (OPTIONAL)", class_name="text-[10px] text-slate-500 tracking-widest mb-1"),
-            rx.input(
-                placeholder="e.g. Read 10 pages/day, meditate 15 min...",
-                value=AppState.extracurricular, on_change=AppState.set_extracurricular,
-                class_name="system-input",
-            ),
-            class_name="w-full",
-        ),
-        gap="4", width="100%",
-    )
-
-
-def step_4() -> rx.Component:
-    return rx.vstack(
-        rx.text("[ STEP 4: IDENTITY VERIFICATION ]",
-                class_name="system-font neon-text-blue text-xs tracking-widest mb-1"),
-        rx.text("Provide your credentials. The System will track you directly.",
-                class_name="text-slate-500 text-xs mb-4"),
-        rx.box(
-            rx.text("GITHUB USERNAME", class_name="text-[10px] text-slate-500 tracking-widest mb-1"),
-            rx.input(placeholder="e.g. octocat", value=AppState.github_id,
-                     on_change=AppState.set_github_id, class_name="system-input"),
-            class_name="w-full",
-        ),
-        rx.box(
-            rx.text("LEETCODE USERNAME", class_name="text-[10px] text-slate-500 tracking-widest mb-1"),
-            rx.input(placeholder="e.g. your_lc_username", value=AppState.leetcode_id,
-                     on_change=AppState.set_leetcode_id, class_name="system-input"),
-            class_name="w-full",
-        ),
-        gap="4", width="100%",
-    )
-
-
-def step_5() -> rx.Component:
-    return rx.vstack(
-        rx.text("[ STEP 5: SYSTEM NEGOTIATION ]",
-                class_name="system-font neon-text-blue text-xs tracking-widest mb-1"),
-        rx.text("The System will generate your Commitment Plan. Review it. Accept it.",
-                class_name="text-slate-500 text-xs mb-4"),
-
-        # Generate button (shown when plan not yet generated)
-        rx.cond(
-            ~AppState.ai_plan_visible & ~AppState.ai_plan_loading,
-            rx.button(
-                "⚡ GENERATE COMMITMENT PLAN",
-                on_click=[AppState.generate_ai_plan, AppState.finish_ai_loading],
-                class_name="system-button w-full py-3 text-xs tracking-[0.2em]",
-            ),
-            rx.fragment(),
-        ),
-
-        # Loading spinner
-        rx.cond(
-            AppState.ai_plan_loading,
-            rx.vstack(
-                rx.spinner(size="3", color="cyan"),
-                rx.text("SYSTEM PROCESSING...",
-                        class_name="system-font text-xs neon-text-blue animate-pulse tracking-widest"),
-                align="center", gap="3", class_name="w-full py-8",
-            ),
-            rx.fragment(),
-        ),
-
-        # Plan revealed
-        rx.cond(
-            AppState.ai_plan_visible,
-            rx.vstack(
-                rx.box(
-                    rx.text(
-                        AppState.commitment_plan,
-                        class_name="text-xs text-green-400 font-mono whitespace-pre-wrap leading-relaxed",
-                    ),
-                    class_name="w-full p-4 bg-black/60 border border-green-800/40 rounded overflow-auto max-h-64",
-                ),
-                rx.hstack(
-                    rx.button(
-                        "✗ DECLINE",
-                        on_click=AppState.decline_plan,
-                        class_name="system-button system-button-danger flex-1 text-xs",
-                    ),
-                    rx.button(
-                        "⚡ ACCEPT & AWAKEN",
-                        on_click=AppState.accept_awakening,
-                        class_name="system-button flex-1 text-xs bg-neon-blue/10",
-                    ),
-                    gap="3", width="100%",
-                ),
-                gap="4", width="100%",
-            ),
-            rx.fragment(),
-        ),
-        gap="4", width="100%",
-    )
-
-
-# ── Full Page ──
-
-def awakening_page() -> rx.Component:
+def _intro_screen() -> rx.Component:
     return rx.box(
-        # Animated background
-        rx.box(class_name="fixed inset-0 portal-bg z-0"),
+        rx.vstack(
+            # Pulsing ellipsis
+            rx.text("· · ·",
+                    class_name="text-slate-800 text-3xl tracking-[0.6em] intro-1",
+                    style={"fontFamily": "monospace"}),
+
+            rx.box(class_name="h-8"),
+
+            rx.text("A FAINT PULSE DETECTED",
+                    class_name="awaken-sub intro-2"),
+
+            rx.box(class_name="h-2"),
+
+            rx.text("HUNTER IDENTIFIED",
+                    class_name="awaken-sub intro-3",
+                    style={"color": "rgba(0,212,255,0.25)", "letterSpacing": "0.5em"}),
+
+            rx.box(class_name="h-10"),
+
+            # Main title — large glitch effect
+            rx.text(
+                "LEVELING UP: THE SYSTEM",
+                class_name="app-name-cinzel intro-4",
+                style={
+                    "fontSize": "clamp(1.8rem, 6vw, 3.5rem)",
+                    "fontWeight": "900",
+                    "letterSpacing": "0.06em",
+                },
+            ),
+
+            rx.box(class_name="h-6"),
+
+            rx.text("INITIATING AWAKENING SEQUENCE",
+                    class_name="awaken-sub intro-5",
+                    style={"color": "rgba(155,89,255,0.4)", "letterSpacing": "0.4em"}),
+
+            rx.box(class_name="h-16"),
+
+            rx.text(
+                "[ CLICK ANYWHERE TO BEGIN ]",
+                class_name="awaken-sub animate-pulse intro-6",
+                style={"letterSpacing": "0.3em", "color": "rgba(100,116,139,0.5)"},
+            ),
+
+            align="center", gap="0",
+        ),
+        on_click=AppState.next_step,
+        class_name="min-h-screen flex items-center justify-center bg-black cursor-pointer overflow-hidden",
+        style={
+            "background": (
+                "radial-gradient(ellipse at 50% 60%, rgba(0,212,255,0.04) 0%, transparent 60%),"
+                "radial-gradient(ellipse at 30% 30%, rgba(155,89,255,0.03) 0%, transparent 50%),"
+                "#020205"
+            )
+        },
+    )
+
+
+# ══════════════════════════════════════════════════════════════════
+# SCREEN 1 — NAME + PHYSICAL AIM
+# ══════════════════════════════════════════════════════════════════
+
+def _name_screen() -> rx.Component:
+    return rx.box(
+        _step_dots(1),
+        rx.vstack(
+            _step_label("HUNTER IDENTIFICATION"),
+
+            rx.text("What is your name?",
+                    class_name="awaken-question screen-enter"),
+
+            rx.box(class_name="h-5"),
+
+            rx.input(
+                placeholder="Enter your name...",
+                value=AppState.user_name,
+                on_change=AppState.set_user_name,
+                on_key_down=AppState.handle_name_key,
+                class_name="awaken-input",
+                auto_focus=True,
+            ),
+
+            rx.box(class_name="h-14"),
+
+            _step_label("PHYSICAL OBJECTIVE"),
+
+            rx.text("State your fitness commitment.",
+                    class_name="awaken-question screen-enter",
+                    style={"fontSize": "clamp(1.1rem, 3vw, 1.6rem)"}),
+
+            rx.box(class_name="h-4"),
+
+            rx.text_area(
+                placeholder="e.g. 100 push-ups, 100 squats, and a 3km run every day...",
+                value=AppState.fitness_goal,
+                on_change=AppState.set_fitness_goal,
+                rows="3",
+                class_name="awaken-textarea",
+            ),
+
+            rx.box(class_name="h-10"),
+
+            rx.button(
+                "CONTINUE  →",
+                on_click=AppState.next_step,
+                class_name="awaken-continue",
+                disabled=AppState.user_name == "",
+            ),
+
+            align="center", gap="0", width="100%", max_width="600px",
+        ),
+        class_name="awaken-screen portal-bg",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════
+# SCREEN 2 — CLASS SELECTION (SPLIT SCREEN)
+# ══════════════════════════════════════════════════════════════════
+
+def _class_screen() -> rx.Component:
+    return rx.box(
+        # Title overlay
         rx.box(
-            class_name="fixed inset-0 z-0 opacity-[0.04]",
-            style={
-                "backgroundImage": (
-                    "linear-gradient(rgba(0,212,255,1) 1px, transparent 1px),"
-                    "linear-gradient(90deg, rgba(0,212,255,1) 1px, transparent 1px)"
+            rx.vstack(
+                rx.text("SELECT YOUR MAIN CLASS",
+                        class_name="awaken-sub screen-enter",
+                        style={"letterSpacing": "0.5em", "color": "rgba(100,116,139,0.6)"}),
+                rx.text(
+                    "Your main class sets recommended targets — you will do both DSA and Projects.",
+                    style={"fontSize": "0.65rem", "color": "rgba(100,116,139,0.3)",
+                           "letterSpacing": "0.05em", "textAlign": "center",
+                           "maxWidth": "420px"},
+                    class_name="screen-enter",
                 ),
-                "backgroundSize": "60px 60px",
-            },
+                align="center", gap="2",
+            ),
+            class_name="absolute top-8 left-0 right-0 flex justify-center z-10",
         ),
 
-        rx.center(
-            rx.vstack(
-                # Title
+        # Split halves
+        rx.box(
+            # ── LEFT: Shadow Mage ─────────────────────────────────
+            rx.box(
                 rx.vstack(
+                    rx.text("✦",
+                            style={"fontSize": "3.5rem", "color": "#c084fc",
+                                   "textShadow": "0 0 30px rgba(192,132,252,0.6)"},
+                            class_name="screen-enter"),
+                    rx.box(class_name="h-4"),
+                    rx.text("SHADOW MAGE",
+                            class_name="system-font screen-enter",
+                            style={"fontSize": "clamp(1.4rem, 3vw, 2rem)",
+                                   "fontWeight": "900", "letterSpacing": "0.15em",
+                                   "color": "#c084fc",
+                                   "textShadow": "0 0 15px rgba(192,132,252,0.4)"}),
+                    rx.text("DSA  ·  Algorithms  ·  Logic",
+                            style={"fontSize": "0.65rem", "letterSpacing": "0.35em",
+                                   "color": "rgba(192,132,252,0.5)"},
+                            class_name="mt-1 screen-enter"),
+                    rx.box(class_name="h-6"),
                     rx.text(
-                        "⚡ THE SYSTEM ⚡",
-                        class_name="system-font text-3xl md:text-5xl neon-text-blue tracking-[0.3em] system-flicker",
+                        "Master the arcane arts of data structures. "
+                        "Conjure solutions from silence. Every algorithm a spell — "
+                        "every submission a strike.",
+                        style={"maxWidth": "280px", "textAlign": "center",
+                               "color": "rgba(148,163,184,0.7)",
+                               "fontSize": "0.82rem", "lineHeight": "1.7"},
+                        class_name="screen-enter",
                     ),
-                    rx.text(
-                        "AWAKENING PROTOCOL INITIATED",
-                        class_name="text-slate-600 text-[10px] tracking-[0.6em] mt-1",
-                    ),
-                    align="center", gap="1", class_name="mb-10",
+                    rx.box(class_name="h-8"),
+                    rx.text("[ CLICK TO CHOOSE ]",
+                            style={"fontSize": "0.6rem", "letterSpacing": "0.3em",
+                                   "color": "rgba(192,132,252,0.3)"}),
+                    align="center", gap="0",
                 ),
+                on_click=AppState.choose_class("Shadow Mage"),
+                class_name="class-side class-mage",
+            ),
 
-                # Steps
-                step_indicator(),
+            # ── CENTER DIVIDER ────────────────────────────────────
+            rx.box(
+                rx.text("VS",
+                        class_name="system-font",
+                        style={"fontSize": "0.6rem", "letterSpacing": "0.3em",
+                               "color": "rgba(100,116,139,0.2)",
+                               "writingMode": "vertical-rl",
+                               "textOrientation": "mixed"}),
+                style={
+                    "position": "absolute",
+                    "left": "50%", "top": "50%",
+                    "transform": "translate(-50%, -50%)",
+                    "zIndex": "20",
+                    "display": "flex", "alignItems": "center", "justifyContent": "center",
+                },
+            ),
 
-                # Form card
+            # ── RIGHT: Shadow Assassin ───────────────────────────
+            rx.box(
+                rx.vstack(
+                    rx.text("⚔",
+                            style={"fontSize": "3.5rem", "color": "#f87171",
+                                   "textShadow": "0 0 30px rgba(239,68,68,0.6)"},
+                            class_name="screen-enter"),
+                    rx.box(class_name="h-4"),
+                    rx.text("SHADOW ASSASSIN",
+                            class_name="system-font screen-enter",
+                            style={"fontSize": "clamp(1.1rem, 2.5vw, 1.7rem)",
+                                   "fontWeight": "900", "letterSpacing": "0.12em",
+                                   "color": "#f87171",
+                                   "textShadow": "0 0 15px rgba(239,68,68,0.4)"}),
+                    rx.text("Projects  ·  Build  ·  Deploy",
+                            style={"fontSize": "0.65rem", "letterSpacing": "0.35em",
+                                   "color": "rgba(248,113,113,0.5)"},
+                            class_name="mt-1 screen-enter"),
+                    rx.box(class_name="h-6"),
+                    rx.text(
+                        "Strike with precision. Build things that bleed. "
+                        "Every commit a kill — every deployment a conquest. "
+                        "No half measures.",
+                        style={"maxWidth": "280px", "textAlign": "center",
+                               "color": "rgba(148,163,184,0.7)",
+                               "fontSize": "0.82rem", "lineHeight": "1.7"},
+                        class_name="screen-enter",
+                    ),
+                    rx.box(class_name="h-8"),
+                    rx.text("[ CLICK TO CHOOSE ]",
+                            style={"fontSize": "0.6rem", "letterSpacing": "0.3em",
+                                   "color": "rgba(248,113,113,0.3)"}),
+                    align="center", gap="0",
+                ),
+                on_click=AppState.choose_class("Shadow Assassin"),
+                class_name="class-side class-assassin",
+            ),
+
+            class_name="class-choice-container",
+            style={"position": "relative"},
+        ),
+
+        class_name="min-h-screen bg-black overflow-hidden relative",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════
+# SCREEN 3 — DAILY TARGET + CUSTOM QUESTS
+# ══════════════════════════════════════════════════════════════════
+
+def _custom_quest_tag(quest: str) -> rx.Component:
+    return rx.hstack(
+        rx.text(quest, class_name="text-xs text-slate-300"),
+        rx.text(
+            "✕",
+            on_click=AppState.remove_custom_quest(quest),
+            class_name="text-slate-600 hover:text-red-400 cursor-pointer text-xs ml-1",
+        ),
+        class_name="px-3 py-1.5 border border-slate-800 rounded-sm bg-slate-900/60 items-center",
+        gap="2",
+    )
+
+
+def _stepper(label: str, sub: str, value_var, on_inc, on_dec,
+             rec_var, value_color: str = "stepper-value") -> rx.Component:
+    """A +/- stepper with recommended badge."""
+    return rx.vstack(
+        rx.text(label,
+                class_name="awaken-sub",
+                style={"letterSpacing": "0.25em", "color": "rgba(148,163,184,0.5)"}),
+        rx.text(sub,
+                style={"fontSize": "0.6rem", "color": "rgba(100,116,139,0.35)",
+                       "letterSpacing": "0.1em"}),
+        rx.box(class_name="h-2"),
+        rx.hstack(
+            rx.button(
+                "−",
+                on_click=on_dec,
+                class_name="stepper-btn",
+            ),
+            rx.text(value_var, class_name=value_color),
+            rx.button(
+                "+",
+                on_click=on_inc,
+                class_name="stepper-btn",
+            ),
+            gap="3", align="center",
+        ),
+        rx.cond(
+            rec_var,
+            rx.text("✓ RECOMMENDED", class_name="recommended-badge"),
+            rx.box(class_name="h-5"),  # spacer to maintain height
+        ),
+        align="center", gap="1",
+    )
+
+
+def _target_screen() -> rx.Component:
+    return rx.box(
+        _step_dots(3),
+        rx.vstack(
+            _step_label("TARGET CONFIGURATION"),
+
+            rx.text("Set your daily commitment.",
+                    class_name="awaken-question screen-enter"),
+
+            rx.box(class_name="h-2"),
+
+            rx.text(
+                "Both DSA and Projects are required. Your main class recommendation is shown below.",
+                style={"color": "rgba(100,116,139,0.4)", "fontSize": "0.75rem",
+                       "textAlign": "center", "maxWidth": "480px"},
+            ),
+
+            rx.box(class_name="h-10"),
+
+            # Dual steppers
+            rx.flex(
+                _stepper(
+                    label="DSA PROBLEMS / DAY",
+                    sub="WEEKDAYS ONLY · WEEKENDS = REVISION",
+                    value_var=AppState.dsa_per_day,
+                    on_inc=AppState.increment_dsa,
+                    on_dec=AppState.decrement_dsa,
+                    rec_var=AppState.dsa_is_recommended,
+                    value_color="stepper-value",
+                ),
+                # Divider
                 rx.box(
-                    rx.vstack(
-                        rx.cond(AppState.onboarding_step == 1, step_1(), rx.fragment()),
-                        rx.cond(AppState.onboarding_step == 2, step_2(), rx.fragment()),
-                        rx.cond(AppState.onboarding_step == 3, step_3(), rx.fragment()),
-                        rx.cond(AppState.onboarding_step == 4, step_4(), rx.fragment()),
-                        rx.cond(AppState.onboarding_step == 5, step_5(), rx.fragment()),
-                        gap="4", width="100%", class_name="animate-slide-up",
+                    style={"width": "1px", "background": "rgba(26,26,51,0.8)",
+                           "margin": "0 40px", "alignSelf": "stretch"},
+                ),
+                _stepper(
+                    label="PROJECTS / WEEK",
+                    sub="DEPLOYMENTS · GITHUB MERGES · RELEASES",
+                    value_var=AppState.projects_per_week,
+                    on_inc=AppState.increment_projects,
+                    on_dec=AppState.decrement_projects,
+                    rec_var=AppState.projects_is_recommended,
+                    value_color="stepper-value stepper-value-purple",
+                ),
+                justify="center",
+                align="start",
+                wrap="wrap",
+                gap="0",
+            ),
+
+            rx.box(class_name="h-10"),
+
+            # Custom quests section
+            rx.vstack(
+                rx.text("ADD CUSTOM DAILY / WEEKLY QUESTS",
+                        class_name="awaken-sub",
+                        style={"color": "rgba(148,163,184,0.4)", "letterSpacing": "0.3em"}),
+
+                rx.box(class_name="h-3"),
+
+                rx.hstack(
+                    rx.input(
+                        placeholder="e.g. Read 10 pages every night...",
+                        value=AppState.new_quest_input,
+                        on_change=AppState.set_new_quest_input,
+                        on_key_down=AppState.handle_quest_key,
+                        class_name="system-input",
+                        style={"maxWidth": "400px"},
                     ),
-                    class_name="system-card p-6 md:p-8 w-full",
+                    rx.button(
+                        "ADD",
+                        on_click=AppState.add_custom_quest,
+                        class_name="system-button text-xs",
+                        style={"padding": "10px 20px", "flexShrink": "0"},
+                    ),
+                    gap="3", align="center",
                 ),
 
-                # Back / Continue nav
                 rx.cond(
-                    AppState.onboarding_step < 5,
-                    rx.hstack(
-                        rx.cond(
-                            AppState.onboarding_step > 1,
-                            rx.button(
-                                "← BACK",
-                                on_click=AppState.prev_step,
-                                class_name="system-button text-xs",
-                            ),
-                            rx.box(),
+                    AppState.custom_quests.length() > 0,
+                    rx.box(
+                        rx.flex(
+                            rx.foreach(AppState.custom_quests, _custom_quest_tag),
+                            flex_wrap="wrap",
+                            gap="2",
                         ),
-                        rx.spacer(),
-                        rx.button(
-                            "CONTINUE →",
-                            on_click=AppState.next_step,
-                            class_name="system-button text-xs",
-                        ),
-                        width="100%", class_name="mt-4",
+                        class_name="mt-3 max-w-lg",
                     ),
                     rx.fragment(),
                 ),
 
-                rx.text(
-                    "The System does not grant second chances.",
-                    class_name="text-slate-700 text-[10px] tracking-widest mt-6",
-                ),
-                gap="0", width="100%", max_width="700px",
+                align="center", gap="0", width="100%",
             ),
-            class_name="relative z-10 min-h-screen px-4 py-12",
+
+            rx.box(class_name="h-10"),
+
+            rx.button(
+                "CONTINUE  →",
+                on_click=AppState.next_step,
+                class_name="awaken-continue",
+            ),
+
+            align="center", gap="0", width="100%", max_width="700px",
         ),
-        class_name="min-h-screen w-full",
+        class_name="awaken-screen portal-bg",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════
+# SCREEN 4 — EXTRACURRICULARS
+# ══════════════════════════════════════════════════════════════════
+
+def _extras_screen() -> rx.Component:
+    return rx.box(
+        _step_dots(4),
+        rx.vstack(
+            _step_label("OPTIONAL PROTOCOL"),
+
+            rx.text("Any other pursuits?",
+                    class_name="awaken-question screen-enter"),
+
+            rx.box(class_name="h-3"),
+
+            rx.text(
+                "Clubs, competitions, languages, instruments... anything you track.",
+                style={"color": "rgba(100,116,139,0.6)", "fontSize": "0.8rem",
+                       "letterSpacing": "0.05em", "textAlign": "center"},
+            ),
+
+            rx.box(class_name="h-8"),
+
+            rx.text_area(
+                placeholder="e.g. Chess club Tuesdays, learning Spanish 15 min/day...",
+                value=AppState.extra_activities,
+                on_change=AppState.set_extra_activities,
+                rows="4",
+                class_name="awaken-textarea",
+            ),
+
+            rx.box(class_name="h-8"),
+
+            rx.hstack(
+                rx.button(
+                    "SKIP  →",
+                    on_click=AppState.next_step,
+                    class_name="awaken-continue",
+                    style={"color": "rgba(100,116,139,0.5)",
+                           "borderColor": "rgba(100,116,139,0.2)",
+                           "fontSize": "0.65rem"},
+                ),
+                rx.button(
+                    "CONTINUE  →",
+                    on_click=AppState.next_step,
+                    class_name="awaken-continue",
+                ),
+                gap="4",
+            ),
+
+            align="center", gap="0", width="100%", max_width="580px",
+        ),
+        class_name="awaken-screen portal-bg",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════
+# SCREEN 5 — URL VERIFICATION
+# ══════════════════════════════════════════════════════════════════
+
+def _url_field(
+    label: str,
+    placeholder: str,
+    value,
+    on_change,
+    error_var,
+    prefix: str,
+) -> rx.Component:
+    return rx.vstack(
+        rx.text(label,
+                class_name="awaken-sub self-start",
+                style={"letterSpacing": "0.25em", "color": "rgba(148,163,184,0.5)"}),
+
+        rx.input(
+            placeholder=placeholder,
+            value=value,
+            on_change=on_change,
+            class_name="system-input",
+            style={"maxWidth": "520px", "fontFamily": "monospace", "fontSize": "0.82rem"},
+        ),
+
+        rx.cond(
+            error_var != "",
+            rx.hstack(
+                rx.text("⚠", style={"color": "#ef4444", "fontSize": "0.75rem"}),
+                rx.text(
+                    error_var,
+                    class_name="url-error",
+                ),
+                rx.text(
+                    prefix,
+                    style={"color": "rgba(239,68,68,0.5)", "fontFamily": "monospace",
+                           "fontSize": "0.7rem"},
+                ),
+                align="center", gap="2",
+            ),
+            rx.text(
+                prefix + "...",
+                style={"fontSize": "0.65rem", "color": "rgba(100,116,139,0.3)",
+                       "fontFamily": "monospace"},
+            ),
+        ),
+
+        gap="2", width="100%", max_width="520px", align="start",
+    )
+
+
+def _verify_screen() -> rx.Component:
+    return rx.box(
+        _step_dots(5),
+        rx.vstack(
+            _step_label("IDENTITY VERIFICATION"),
+
+            rx.text("Prove your presence.",
+                    class_name="awaken-question screen-enter"),
+
+            rx.box(class_name="h-2"),
+
+            rx.text(
+                "Links are optional but tracked. Invalid format will be flagged.",
+                style={"color": "rgba(100,116,139,0.5)", "fontSize": "0.78rem",
+                       "textAlign": "center"},
+            ),
+
+            rx.box(class_name="h-10"),
+
+            _url_field(
+                label="GITHUB PROFILE",
+                placeholder="https://github.com/your-username",
+                value=AppState.github_url,
+                on_change=AppState.set_github_url,
+                error_var=AppState.url_github_error,
+                prefix="https://github.com/",
+            ),
+
+            rx.box(class_name="h-6"),
+
+            _url_field(
+                label="LINKEDIN PROFILE",
+                placeholder="https://linkedin.com/in/your-username",
+                value=AppState.linkedin_url,
+                on_change=AppState.set_linkedin_url,
+                error_var=AppState.url_linkedin_error,
+                prefix="https://linkedin.com/in/",
+            ),
+
+            rx.box(class_name="h-10"),
+
+            rx.button(
+                "CONTINUE  →",
+                on_click=AppState.try_next_from_verify,
+                class_name="awaken-continue",
+            ),
+
+            align="center", gap="0", width="100%", max_width="580px",
+        ),
+        class_name="awaken-screen portal-bg",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════
+# SCREEN 6 — COMMITMENT PLAN PREVIEW (no negotiate)
+# ══════════════════════════════════════════════════════════════════
+
+def _plan_screen() -> rx.Component:
+    return rx.box(
+        _step_dots(6),
+        rx.vstack(
+            _step_label("SYSTEM CONFIGURATION"),
+
+            rx.text("Your commitment.",
+                    class_name="awaken-question screen-enter"),
+
+            rx.box(class_name="h-2"),
+
+            rx.text(
+                "This is exactly what you agreed to. The System remembers everything.",
+                style={"color": "rgba(100,116,139,0.5)", "fontSize": "0.78rem",
+                       "textAlign": "center"},
+            ),
+
+            rx.box(class_name="h-8"),
+
+            # Terminal plan display
+            rx.box(
+                rx.text(
+                    AppState.commitment_plan_text,
+                    class_name="plan-terminal screen-enter",
+                ),
+                width="100%",
+                max_width="660px",
+                overflow_x="auto",
+            ),
+
+            rx.box(class_name="h-8"),
+
+            rx.button(
+                "⚡  AWAKEN",
+                on_click=AppState.accept_awakening,
+                class_name="awaken-continue awaken-continue-purple",
+                style={"fontSize": "0.8rem", "letterSpacing": "0.3em",
+                       "padding": "14px 52px"},
+            ),
+
+            align="center", gap="0", width="100%",
+        ),
+        class_name="awaken-screen portal-bg",
+        style={"paddingTop": "5rem", "paddingBottom": "4rem",
+               "alignItems": "center", "justifyContent": "flex-start"},
+    )
+
+
+# ══════════════════════════════════════════════════════════════════
+# ROOT PAGE — routes between all 7 screens
+# ══════════════════════════════════════════════════════════════════
+
+def awakening_page() -> rx.Component:
+    return rx.cond(
+        AppState.onboarding_step == 0, _intro_screen(),
+        rx.cond(
+        AppState.onboarding_step == 1, _name_screen(),
+        rx.cond(
+        AppState.onboarding_step == 2, _class_screen(),
+        rx.cond(
+        AppState.onboarding_step == 3, _target_screen(),
+        rx.cond(
+        AppState.onboarding_step == 4, _extras_screen(),
+        _plan_screen(),  # step 5 = plan (URL step removed)
+        ))))
     )

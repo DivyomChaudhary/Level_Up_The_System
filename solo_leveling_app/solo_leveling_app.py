@@ -6,10 +6,11 @@ All UI lives in pages/ and components/.
 import reflex as rx
 
 from solo_leveling_app.state import AppState
-from solo_leveling_app.pages.awakening  import awakening_page
-from solo_leveling_app.pages.dashboard  import dashboard_page
-from solo_leveling_app.pages.gates      import gates_page
+from solo_leveling_app.pages.awakening   import awakening_page
+from solo_leveling_app.pages.dashboard   import dashboard_page
+from solo_leveling_app.pages.gates       import gates_page
 from solo_leveling_app.pages.leaderboard import leaderboard_page
+from solo_leveling_app.pages.commitment  import commitment_page
 
 
 def index() -> rx.Component:
@@ -30,7 +31,11 @@ def index() -> rx.Component:
                     rx.cond(
                         AppState.active_page == "leaderboard",
                         leaderboard_page(),
-                        dashboard_page(),   # fallback
+                        rx.cond(
+                            AppState.active_page == "commitment",
+                            commitment_page(),
+                            dashboard_page(),  # fallback
+                        ),
                     ),
                 ),
             ),
@@ -50,6 +55,6 @@ app = rx.App(
 
 app.add_page(
     index,
-    title="The System | Solo Leveling Habit Enforcer",
+    title="Leveling Up: The System",
     route="/",
 )

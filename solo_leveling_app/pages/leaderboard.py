@@ -1,8 +1,11 @@
 """
-pages/leaderboard.py — S-Rank to D-Rank Hunter mock data with rx.hover_card.
-
-NOTE: hunter["rank"] is a Reflex Var inside rx.foreach.
-      We use rx.match() for all rank-based styling — no .lower() calls.
+pages/leaderboard.py — S-Rank to D-Rank Hunter Registry.
+Phase 4 changes:
+  • Top 3 border animations: #1 purple-fire, #2 orange-sun, #3 blue-pulse
+  • Table width: 58.575% of page
+  • Wider rows, aligned columns
+  • No rank-badge border on hunter rows (removed)
+  • Position numbers #1/2/3 styled with gradient text
 """
 import reflex as rx
 from solo_leveling_app.state import AppState, HunterEntry
@@ -21,130 +24,170 @@ def _rank_color(rank) -> str:
     )
 
 
-def _rank_border(rank) -> str:
-    return rx.match(
-        rank,
-        ("S", "rgba(255,215,0,0.3)"),
-        ("A", "rgba(192,132,252,0.3)"),
-        ("B", "rgba(96,165,250,0.3)"),
-        ("C", "rgba(74,222,128,0.25)"),
-        ("D", "rgba(148,163,184,0.2)"),
-        "rgba(107,114,128,0.2)",
+def _row_class(hunter: HunterEntry) -> str:
+    """Pick the CSS class for a leaderboard row."""
+    return rx.cond(
+        hunter["is_user"],
+        "lb-row-user",
+        rx.cond(
+            hunter["pos"] == 1,
+            "lb-row-top1",
+            rx.cond(
+                hunter["pos"] == 2,
+                "lb-row-top2",
+                rx.cond(
+                    hunter["pos"] == 3,
+                    "lb-row-top3",
+                    "lb-row",
+                ),
+            ),
+        ),
     )
 
 
-def _row_hover_bg(rank) -> str:
-    return rx.match(
-        rank,
-        ("S", "rgba(255,215,0,0.04)"),
-        ("A", "rgba(192,132,252,0.04)"),
-        ("B", "rgba(96,165,250,0.04)"),
-        "rgba(255,255,255,0.02)",
+def _pos_cell(pos) -> rx.Component:
+    """Position number with top-3 gradient effects."""
+    return rx.cond(
+        pos == 1,
+        rx.text(pos, class_name="lb-pos-1"),
+        rx.cond(
+            pos == 2,
+            rx.text(pos, class_name="lb-pos-2"),
+            rx.cond(
+                pos == 3,
+                rx.text(pos, class_name="lb-pos-3"),
+                rx.text(pos,
+                        style={"fontSize": "0.7rem", "color": "#374151",
+                               "fontFamily": "monospace", "fontWeight": "600"}),
+            ),
+        ),
     )
 
 
 def hunter_row(hunter: HunterEntry) -> rx.Component:
     rank     = hunter["rank"]
     pos      = hunter["pos"]
+    lv       = hunter["level"]
     rank_col = _rank_color(rank)
-    bdr_col  = _rank_border(rank)
 
-    pos_icon = rx.cond(
-        pos == 1,
-        rx.text("👑", class_name="text-base"),
-        rx.cond(
-            pos <= 3,
-            rx.text("⚔", class_name="text-sm"),
-            rx.text(pos, class_name="text-xs text-slate-600 font-mono"),
+    # Rank badge — text only, no border on the row itself
+    rank_cell = rx.text(
+        rank,
+        style={
+            "color": rank_col,
+            "fontFamily": "'Orbitron', monospace",
+            "fontSize": "0.72rem",
+            "fontWeight": "800",
+        },
+    )
+
+    level_cell = rx.text(
+        "Lv." + lv.to_string(),
+        style={"color": "rgba(100,116,139,0.6)", "fontFamily": "monospace",
+               "fontSize": "0.68rem", "fontWeight": "600"},
+    )
+
+    name_cell = rx.text(
+        hunter["name"],
+        style=rx.cond(
+            rank == "S",
+            {"color": "#f1f5f9", "fontSize": "0.85rem", "fontWeight": "500",
+             "fontFamily": "'Rajdhani', sans-serif"},
+            {"color": "#94a3b8", "fontSize": "0.82rem",
+             "fontFamily": "'Rajdhani', sans-serif"},
         ),
+    )
+
+    region_cell = rx.text(
+        hunter["region"],
+        style={"color": "#374151", "fontSize": "0.68rem",
+               "fontFamily": "'Rajdhani', sans-serif", "fontWeight": "600"},
+    )
+
+    # Info preview — full width, truncated
+    info_preview = rx.text(
+        hunter["info"],
+        style={"color": "rgba(75,85,99,0.9)", "fontSize": "0.68rem",
+               "fontFamily": "'Rajdhani', sans-serif", "fontWeight": "500",
+               "overflow": "hidden", "textOverflow": "ellipsis", "whiteSpace": "nowrap"},
     )
 
     return rx.hover_card.root(
         rx.hover_card.trigger(
             rx.box(
-                rx.hstack(
-                    rx.box(pos_icon, class_name="w-8 text-center flex-shrink-0"),
-                    # Rank badge
-                    rx.box(
-                        rx.text(
-                            rank,
-                            style={"color": rank_col,
-                                   "fontFamily": "'Orbitron',monospace",
-                                   "fontSize": "0.75rem", "fontWeight": "800"},
-                        ),
-                        style={
-                            "width": "1.75rem", "height": "1.75rem",
-                            "border": f"1px solid {bdr_col}",
-                            "backgroundColor": f"color-mix(in srgb, {rank_col} 6%, transparent)",
-                            "display": "flex", "alignItems": "center",
-                            "justifyContent": "center", "borderRadius": "2px",
-                            "flexShrink": "0",
-                        },
+                _pos_cell(pos),
+                rank_cell,
+                level_cell,
+                rx.cond(
+                    hunter["is_user"],
+                    rx.hstack(
+                        name_cell,
+                        rx.text("YOU",
+                                style={"fontSize": "0.52rem", "letterSpacing": "0.2em",
+                                       "color": "rgba(0,212,255,0.7)",
+                                       "border": "1px solid rgba(0,212,255,0.3)",
+                                       "background": "rgba(0,212,255,0.06)",
+                                       "padding": "1px 7px", "borderRadius": "2px",
+                                       "fontFamily": "'Orbitron',monospace"}),
+                        gap="2", align="center",
                     ),
-                    rx.text(
-                        hunter["name"],
-                        class_name=rx.cond(
-                            rank == "S",
-                            "text-sm font-medium text-slate-100",
-                            "text-sm text-slate-300",
-                        ),
-                    ),
-                    rx.spacer(),
-                    rx.text(hunter["region"],
-                            class_name="text-[10px] text-slate-600 hidden sm:block"),
-                    rx.text("ℹ",
-                            class_name="text-[10px] text-slate-700 hover:text-neon-blue transition-colors ml-2"),
-                    gap="3", align="center", width="100%",
+                    name_cell,
                 ),
-                style={"transition": "background 0.2s"},
-                class_name="p-3 border-b border-system-border hover:bg-white/[0.03] cursor-pointer",
+                region_cell,
+                info_preview,
+                class_name=_row_class(hunter),
             ),
         ),
         rx.hover_card.content(
             rx.vstack(
                 rx.hstack(
-                    rx.box(
-                        rx.text(
-                            rank,
-                            style={"color": rank_col,
-                                   "fontFamily": "'Orbitron',monospace",
-                                   "fontSize": "0.875rem", "fontWeight": "800"},
-                        ),
-                        style={
-                            "width": "2.25rem", "height": "2.25rem",
-                            "border": f"1px solid {bdr_col}",
-                            "backgroundColor": f"color-mix(in srgb, {rank_col} 8%, transparent)",
-                            "display": "flex", "alignItems": "center",
-                            "justifyContent": "center", "borderRadius": "2px",
-                            "flexShrink": "0",
-                        },
+                    rx.text(
+                        rank,
+                        style={"color": rank_col,
+                               "fontFamily": "'Orbitron', monospace",
+                               "fontSize": "1rem", "fontWeight": "900",
+                               "padding": "4px 10px",
+                               "background": f"color-mix(in srgb, {rank_col} 8%, transparent)",
+                               "borderRadius": "2px"},
                     ),
                     rx.vstack(
-                        rx.text(hunter["name"], class_name="text-sm font-semibold text-white"),
-                        rx.text(
-                            rx.fragment("Rank ", rank, " Hunter"),
-                            style={"color": rank_col,
-                                   "fontSize": "0.625rem", "letterSpacing": "0.15em"},
+                        rx.text(hunter["name"],
+                                style={"color": "#f1f5f9", "fontSize": "0.92rem",
+                                       "fontWeight": "600", "fontFamily": "'Rajdhani',sans-serif"}),
+                        rx.hstack(
+                            rx.text("Level", style={"color": "rgba(100,116,139,0.5)",
+                                                     "fontSize": "0.62rem", "letterSpacing": "0.15em",
+                                                     "fontFamily": "'Rajdhani',sans-serif", "fontWeight": "600"}),
+                            rx.text(lv.to_string(),
+                                    style={"color": "rgba(0,212,255,0.7)",
+                                           "fontFamily": "monospace", "fontSize": "0.68rem"}),
+                            gap="2",
                         ),
-                        gap="0",
+                        gap="0.5",
                     ),
-                    gap="2", align="center",
+                    gap="3", align="center",
                 ),
                 rx.box(class_name="w-full h-px bg-system-border"),
-                rx.text(hunter["info"], class_name="text-xs text-slate-400 leading-relaxed"),
+                rx.text(hunter["info"],
+                        style={"color": "#94a3b8", "fontSize": "0.8rem",
+                               "lineHeight": "1.6", "fontFamily": "'Rajdhani',sans-serif",
+                               "fontWeight": "500"}),
                 rx.hstack(
-                    rx.text("REGION:", class_name="text-[10px] text-slate-600 tracking-wider"),
-                    rx.text(hunter["region"], class_name="text-[10px] text-slate-400"),
+                    rx.text("REGION", style={"color": "#374151", "fontSize": "0.6rem",
+                                             "letterSpacing": "0.15em",
+                                             "fontFamily": "'Rajdhani',sans-serif", "fontWeight": "700"}),
+                    rx.text(hunter["region"],
+                            style={"color": "#6b7280", "fontSize": "0.72rem",
+                                   "fontFamily": "'Rajdhani',sans-serif", "fontWeight": "600"}),
                     gap="2",
                 ),
                 gap="3", align="start",
             ),
-            class_name="system-card p-4 min-w-[220px] max-w-[300px]",
-            style={
-                "background": "rgba(8,8,15,0.98)",
-                "border": "1px solid rgba(155,89,255,0.35)",
-                "boxShadow": "0 0 25px rgba(155,89,255,0.2)",
-            },
+            class_name="system-card p-4",
+            style={"background": "rgba(8,8,15,0.99)",
+                   "border": "1px solid rgba(155,89,255,0.3)",
+                   "boxShadow": "0 0 24px rgba(155,89,255,0.15)",
+                   "minWidth": "300px", "maxWidth": "380px"},
         ),
     )
 
@@ -154,88 +197,97 @@ def leaderboard_page() -> rx.Component:
         system_nav(),
         rx.box(
             rx.vstack(
+
                 # Page header
                 rx.vstack(
                     rx.text("[ WORLDWIDE HUNTER REGISTRY ]",
-                            class_name="system-font text-[10px] tracking-widest text-slate-600"),
+                            style={"fontFamily": "'Rajdhani',sans-serif", "fontWeight": "600",
+                                   "fontSize": "0.62rem", "letterSpacing": "0.3em",
+                                   "color": "#374151"}),
                     rx.text("Leaderboard",
-                            class_name="system-font text-2xl font-black text-white tracking-wider"),
-                    rx.text("Registered hunters, ranked by classification. Hover for intel.",
-                            class_name="text-slate-500 text-sm"),
-                    gap="1", class_name="mb-6",
+                            class_name="app-name-cinzel",
+                            style={"fontSize": "2.2rem", "fontWeight": "900"}),
+                    rx.text("Registered hunters, ranked by classification.",
+                            style={"fontFamily": "'Rajdhani',sans-serif", "fontWeight": "500",
+                                   "fontSize": "0.8rem", "color": "rgba(100,116,139,0.5)"}),
+                    gap="2", class_name="mb-8", align="center",
                 ),
 
-                # Your card
+                # Your status compact bar
                 rx.box(
                     rx.hstack(
-                        rx.vstack(
-                            rx.text("YOUR STATUS",
-                                    class_name="text-[10px] tracking-widest text-slate-600"),
-                            rx.text(AppState.user_name,
-                                    class_name="text-sm font-semibold text-white"),
-                            rx.text("HUNTER IN TRAINING",
-                                    class_name="text-[10px] text-slate-500 tracking-wider"),
-                            gap="0.5",
-                        ),
+                        rx.text("YOUR POSITION",
+                                style={"fontFamily": "'Rajdhani',sans-serif", "fontWeight": "700",
+                                       "fontSize": "0.6rem", "letterSpacing": "0.2em",
+                                       "color": "rgba(100,116,139,0.4)"}),
                         rx.spacer(),
-                        rx.vstack(
-                            rx.text("RANK",
-                                    class_name="text-[10px] text-slate-600 tracking-wider"),
-                            rx.text(
-                                AppState.hunter_rank,
-                                class_name=f"system-font text-3xl font-black {AppState.rank_color_class}",
-                            ),
-                            gap="0", align="center",
-                        ),
-                        rx.vstack(
-                            rx.text("LEVEL",
-                                    class_name="text-[10px] text-slate-600 tracking-wider"),
+                        rx.hstack(
+                            rx.text(AppState.user_name,
+                                    style={"fontFamily": "'Rajdhani',sans-serif", "fontWeight": "700",
+                                           "fontSize": "0.9rem", "color": "#f1f5f9"}),
+                            rx.text("·", style={"color": "#1e293b"}),
+                            rx.text("LVL",
+                                    style={"fontFamily": "'Rajdhani',sans-serif", "fontWeight": "600",
+                                           "fontSize": "0.6rem", "color": "rgba(100,116,139,0.4)",
+                                           "letterSpacing": "0.15em"}),
                             rx.text(AppState.level,
-                                    class_name="system-font text-3xl font-black neon-text-blue"),
-                            gap="0", align="center",
+                                    style={"fontFamily": "'Orbitron',monospace", "fontWeight": "700",
+                                           "fontSize": "0.85rem", "color": "#00d4ff"}),
+                            rx.text("·", style={"color": "#1e293b"}),
+                            rx.text("RANK",
+                                    style={"fontFamily": "'Rajdhani',sans-serif", "fontWeight": "600",
+                                           "fontSize": "0.6rem", "color": "rgba(100,116,139,0.4)",
+                                           "letterSpacing": "0.15em"}),
+                            rx.text(AppState.hunter_rank,
+                                    class_name=AppState.rank_color_class,
+                                    style={"fontFamily": "'Orbitron',monospace", "fontWeight": "900",
+                                           "fontSize": "0.85rem"}),
+                            gap="2", align="center",
                         ),
-                        rx.vstack(
-                            rx.text("STREAK",
-                                    class_name="text-[10px] text-slate-600 tracking-wider"),
-                            rx.hstack(
-                                rx.text("🔥", class_name="text-xl"),
-                                rx.text(AppState.streak,
-                                        class_name="system-font text-2xl font-black text-orange-400"),
-                                gap="1", align="center",
-                            ),
-                            gap="0", align="center",
-                        ),
-                        gap="5", align="center", width="100%",
+                        width="100%", align="center",
                     ),
-                    class_name="system-card p-5 border-neon-purple/25 mb-4",
-                    style={"boxShadow": "0 0 25px rgba(155,89,255,0.08)"},
+                    style={"padding": "14px 24px",
+                           "background": "rgba(0,212,255,0.04)",
+                           "border": "1px solid rgba(0,212,255,0.15)",
+                           "borderRadius": "4px",
+                           "marginBottom": "24px"},
                 ),
 
-                # Leaderboard table
+                # Leaderboard table (58.575% width)
                 rx.box(
                     # Header row
                     rx.box(
-                        rx.hstack(
-                            rx.text("#",      class_name="text-[10px] tracking-widest text-slate-600 w-8"),
-                            rx.text("RANK",   class_name="text-[10px] tracking-widest text-slate-600 w-7"),
-                            rx.text("HUNTER", class_name="text-[10px] tracking-widest text-slate-600"),
-                            rx.spacer(),
-                            rx.text("REGION", class_name="text-[10px] tracking-widest text-slate-600 hidden sm:block"),
-                            rx.text("INFO",   class_name="text-[10px] tracking-widest text-slate-600 ml-2"),
-                            gap="3", align="center", width="100%",
-                        ),
-                        class_name="px-3 py-2 border-b border-system-border bg-system-card/50",
+                        rx.text("#",
+                                style={"fontFamily": "'Rajdhani',sans-serif", "fontWeight": "700",
+                                       "fontSize": "0.62rem", "letterSpacing": "0.2em", "color": "#374151"}),
+                        rx.text("RANK",
+                                style={"fontFamily": "'Rajdhani',sans-serif", "fontWeight": "700",
+                                       "fontSize": "0.62rem", "letterSpacing": "0.2em", "color": "#374151"}),
+                        rx.text("LEVEL",
+                                style={"fontFamily": "'Rajdhani',sans-serif", "fontWeight": "700",
+                                       "fontSize": "0.62rem", "letterSpacing": "0.2em", "color": "#374151"}),
+                        rx.text("HUNTER",
+                                style={"fontFamily": "'Rajdhani',sans-serif", "fontWeight": "700",
+                                       "fontSize": "0.62rem", "letterSpacing": "0.2em", "color": "#374151"}),
+                        rx.text("REGION",
+                                style={"fontFamily": "'Rajdhani',sans-serif", "fontWeight": "700",
+                                       "fontSize": "0.62rem", "letterSpacing": "0.2em", "color": "#374151"}),
+                        rx.text("INTEL",
+                                style={"fontFamily": "'Rajdhani',sans-serif", "fontWeight": "700",
+                                       "fontSize": "0.62rem", "letterSpacing": "0.2em", "color": "#374151"}),
+                        class_name="lb-header",
                     ),
                     # Hunter rows
                     rx.vstack(
-                        rx.foreach(AppState.leaderboard, hunter_row),
+                        rx.foreach(AppState.leaderboard_with_user, hunter_row),
                         gap="0", width="100%",
                     ),
-                    class_name="system-card overflow-hidden",
+                    class_name="lb-table-container system-card overflow-hidden",
                 ),
-                gap="0", width="100%",
+
+                gap="0", width="100%", align="center",
             ),
-            class_name="pt-20 px-4 md:px-8 pb-12 max-w-3xl mx-auto",
+            class_name="pt-20 px-4 pb-16",
         ),
         class_name="min-h-screen portal-bg",
     )
