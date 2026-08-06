@@ -39,6 +39,16 @@ html, body {
 ::-webkit-scrollbar-track { background: var(--color-system-black); }
 ::-webkit-scrollbar-thumb { background: var(--color-neon-purple); border-radius: 2px; }
 
+/* ── Global input text fix (overrides Radix/browser dark-mode) ── */
+input, textarea, select {
+  color: #e2e8f0 !important;
+  caret-color: #00d4ff;
+}
+input::placeholder, textarea::placeholder {
+  color: rgba(100,116,139,0.55) !important;
+  opacity: 1;
+}
+
 /* ──────────────────────────────────────────────────── */
 /* KEYFRAMES                                           */
 /* ──────────────────────────────────────────────────── */
@@ -691,12 +701,14 @@ html, body {
 
 .lb-row {
   display: grid;
-  grid-template-columns: 40px 56px 68px 1fr 130px 200px;
+  grid-template-columns: 52px 68px 80px 1fr 150px 220px;
   align-items: center;
   gap: 0;
-  padding: 10px 16px;
+  padding: 14px 20px;
   border-bottom: 1px solid rgba(26,26,51,0.6);
   transition: background 0.15s;
+  border-radius: 2px;
+  margin-bottom: 2px;
 }
 
 .lb-row:hover {
@@ -705,10 +717,10 @@ html, body {
 
 .lb-header {
   display: grid;
-  grid-template-columns: 40px 56px 68px 1fr 130px 200px;
+  grid-template-columns: 52px 68px 80px 1fr 150px 220px;
   align-items: center;
   gap: 0;
-  padding: 8px 16px;
+  padding: 10px 20px;
   border-bottom: 1px solid rgba(26,26,51,0.8);
   background: rgba(13,13,26,0.5);
 }
@@ -783,6 +795,41 @@ html, body {
 .rift-ring-outer.dim {
   opacity: 0.25;
   border-color: rgba(255,255,255,0.2);
+}
+
+/* ── Rift aliases for dashboard component (uses rift-outer/inner/core) ── */
+.rift-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rift-outer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.55);
+  box-shadow: 0 0 18px rgba(255,255,255,0.12), inset 0 0 18px rgba(255,255,255,0.06);
+  animation: rift-outer 10s linear infinite;
+}
+.rift-inner {
+  position: absolute;
+  width: 68%;
+  height: 68%;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.35);
+  animation: rift-inner 7s linear infinite;
+}
+.rift-core {
+  position: absolute;
+  width: 35%;
+  height: 35%;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.7);
+  background: radial-gradient(circle at center, rgba(255,255,255,0.25) 0%, transparent 70%);
+  box-shadow: 0 0 12px rgba(255,255,255,0.3);
+  animation: rift-pulse 2s ease-in-out infinite;
 }
 
 /* ──────────────────────────────────────────────────── */
@@ -1027,18 +1074,73 @@ html, body {
   }
 }
 
+/* ═══════════════════════════════════════════════════ */
+/* LEADERBOARD TOP-3 WRAPPER (border animates only)   */
+/* ═══════════════════════════════════════════════════ */
+
+/* Particle burst keyframes for #1 */
+@keyframes particle-burst {
+  0%   { box-shadow: 0 0 0 0 rgba(155,89,255,0.7), 0 0 0 0 rgba(0,0,0,0.0); }
+  30%  { box-shadow: 0 0 0 4px rgba(155,89,255,0.3), 0 0 8px 2px rgba(0,0,0,0.6); }
+  60%  { box-shadow: 0 0 0 8px rgba(155,89,255,0.12), 0 0 16px 6px rgba(0,0,0,0.4); }
+  100% { box-shadow: 0 0 0 0 rgba(155,89,255,0.0), 0 0 0 0 rgba(0,0,0,0.0); }
+}
+
+/* Steady glow for #2 (no pulse) */
+@keyframes steady-orange-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(249,115,22,0.5), 0 0 20px rgba(249,115,22,0.2); }
+}
+
+/* #1 border wrapper */
+.lb-wrapper-top1 {
+  border: 2px solid rgba(155,89,255,0.65);
+  border-radius: 3px;
+  background: rgba(155,89,255,0.03);
+  animation: particle-burst 3s ease-out infinite;
+  transition: background 0.15s;
+  margin-bottom: 3px;
+}
+.lb-wrapper-top1:hover { background: rgba(155,89,255,0.07); }
+
+/* #2 border wrapper */
+.lb-wrapper-top2 {
+  border: 2px solid rgba(249,115,22,0.6);
+  border-radius: 3px;
+  background: rgba(249,115,22,0.03);
+  box-shadow: 0 0 10px rgba(249,115,22,0.45), 0 0 20px rgba(249,115,22,0.18);
+  transition: background 0.15s;
+  margin-bottom: 3px;
+}
+.lb-wrapper-top2:hover { background: rgba(249,115,22,0.07); }
+
+/* #3 border wrapper */
+.lb-wrapper-top3 {
+  border: 2px solid rgba(0,212,255,0.45);
+  border-radius: 3px;
+  background: rgba(0,212,255,0.02);
+  transition: background 0.15s;
+  margin-bottom: 3px;
+}
+.lb-wrapper-top3:hover { background: rgba(0,212,255,0.06); }
+
+/* Inner content row — NO animation, just grid */
+.lb-row-inner {
+  display: grid;
+  grid-template-columns: 52px 68px 80px 1fr 150px 220px;
+  align-items: center;
+  gap: 0;
+  padding: 14px 20px;
+  border-radius: 2px;
+}
+
+/* Regular rows still use the old definition */
 .lb-row-top1 {
   display: grid;
   grid-template-columns: 52px 68px 80px 1fr 150px 220px;
   align-items: center;
   gap: 0;
   padding: 14px 20px;
-  margin-bottom: 2px;
   border-radius: 2px;
-  border: 3px solid rgba(155,89,255,0.55);
-  background: rgba(155,89,255,0.04);
-  animation: fire-purple 2.2s ease-in-out infinite;
-  transition: background 0.15s;
 }
 
 .lb-row-top2 {
@@ -1047,12 +1149,7 @@ html, body {
   align-items: center;
   gap: 0;
   padding: 14px 20px;
-  margin-bottom: 2px;
   border-radius: 2px;
-  border: 3px solid rgba(249,115,22,0.55);
-  background: rgba(249,115,22,0.04);
-  animation: sun-orange 2.6s ease-in-out infinite;
-  transition: background 0.15s;
 }
 
 .lb-row-top3 {
@@ -1061,19 +1158,10 @@ html, body {
   align-items: center;
   gap: 0;
   padding: 14px 20px;
-  margin-bottom: 2px;
   border-radius: 2px;
-  border: 3px solid rgba(0,212,255,0.45);
-  background: rgba(0,212,255,0.04);
-  animation: pulse-blue 2.0s ease-in-out infinite;
-  transition: background 0.15s;
 }
 
-.lb-row-top1:hover { background: rgba(155,89,255,0.08); }
-.lb-row-top2:hover { background: rgba(249,115,22,0.08); }
-.lb-row-top3:hover { background: rgba(0,212,255,0.08); }
-
-/* Rank 1 position number — fire gradient text */
+/* Rank 1 position number — purple gradient text, no animation (wrapper animates) */
 .lb-pos-1 {
   font-family: "Orbitron", monospace;
   font-weight: 900;
@@ -1083,7 +1171,6 @@ html, body {
   -webkit-text-fill-color: transparent;
   background-clip: text;
   filter: drop-shadow(0 0 6px rgba(155,89,255,0.8));
-  animation: fire-purple 2.2s ease-in-out infinite;
 }
 
 /* Rank 2 position — sun gradient */

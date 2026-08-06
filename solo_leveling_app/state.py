@@ -690,38 +690,37 @@ class AppState(rx.State):
 
     def accept_awakening(self):
         """Build quests from user inputs. Calls OpenAI for smart planning."""
+        fitness_text = self.fitness_goal.strip()
+        extras_text  = self.extra_activities.strip()
+
+        # If user typed "default" or nothing, use a standard beginner plan
+        if not fitness_text or fitness_text.lower() == "default":
+            fitness_text = "50 push-ups, 30 squats, 20 sit-ups, and a 10-minute walk every day"
+
         quests: list[QuestItem] = [
-            {"id": "d_dsa", "title": f"LeetCode: {self.dsa_per_day} problem(s) — weekdays", "type": "DSA", "done": False, "xp": 100},
-            {"id": "d_dev", "title": f"Project work ({self.projects_per_week} deployment(s)/week)", "type": "DEV", "done": False, "xp": 100},
+            {"id": "d_dsa", "title": f"LeetCode: {self.dsa_per_day} problem(s) today",           "type": "DSA",     "done": False, "xp": 100},
+            {"id": "d_dev", "title": f"Project work ({self.projects_per_week} deploy/wk goal)",  "type": "DEV",     "done": False, "xp": 100},
         ]
-        if self.fitness_goal.strip():
-            quests.append({"id": "d_fitness", "title": self.fitness_goal[:60], "type": "FITNESS", "done": False, "xp": 100})
-        if self.extra_activities.strip():
-            extras = self.extra_activities.strip()
-            quests.append({"id": "d_extras", "title": extras[:60], "type": "CUSTOM", "done": False, "xp": 100})
+
         for i, cq in enumerate(self.custom_quests):
             quests.append({"id": f"d_cq{i}", "title": cq[:60], "type": "CUSTOM", "done": False, "xp": 100})
 
-        # ── OpenAI smart planner ──────────────────────────────────────
+        # ── OpenAI smart planner ──────────────────────────────
         if _OPENAI_KEY:
             try:
                 import openai
                 client = openai.OpenAI(api_key=_OPENAI_KEY)
                 prompt = (
-                    f"You are a strict habit coach for a gamified leveling system called 'The System'.\n"
-                    f"User profile:\n"
+                    f"You are a strict habit coach for a gamified leveling app called 'The System'.\n"
+                    f"Generate specific DAILY tasks for this hunter.\n"
                     f"  Name: {self.user_name}\n"
-                    f"  Main class: {self.main_class}\n"
-                    f"  DSA problems/day: {self.dsa_per_day}\n"
-                    f"  Projects/week: {self.projects_per_week}\n"
-                    f"  Fitness goal: {self.fitness_goal}\n"
-                    f"  Extra activities: {self.extra_activities}\n"
-                    f"  Custom quests: {', '.join(self.custom_quests)}\n\n"
-                    f"Generate a structured list of ADDITIONAL specific daily tasks (beyond DSA/DEV already included).\n"
-                    f"For each extra activity or fitness goal, break it into 1-2 specific, achievable daily actions.\n"
-                    f"Format each line as: TYPE|TITLE (TYPE = FITNESS/CUSTOM/DSA/DEV, TITLE max 60 chars)\n"
-                    f"Output maximum 5 lines. Be specific (e.g. 'Practice guitar: 20 min scales' not just 'guitar').\n"
-                    f"Only output the lines, nothing else."
+                    f"  Fitness plan: {fitness_text}\n"
+                    f"  Extra pursuits: {extras_text if extras_text else 'none'}\n\n"
+                    f"Rules:\n"
+                    f"- Break the fitness plan into 2-3 concrete daily tasks (exact reps/duration).\n"
+                    f"- Break each extra pursuit into 1 specific daily action.\n"
+                    f"- Format ONLY: TYPE|TITLE  (TYPE = FITNESS or CUSTOM, TITLE max 55 chars)\n"
+                    f"- Max 5 lines total. No intro, no numbering, no explanations."
                 )
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
@@ -739,7 +738,25 @@ class AppState(rx.State):
                             qt = "CUSTOM"
                         quests.append({"id": f"d_ai{idx}", "title": title, "type": qt, "done": False, "xp": 100})
             except Exception:
-                pass  # Silently fall back to manual quests if API fails
+                for i, item in enumerate(fitness_text.split(",")[:3]):
+                    item = item.strip()
+                    if item:
+                        quests.append({"id": f"d_fit{i}", "title": item[:60], "type": "FITNESS", "done": False, "xp": 100})
+                if extras_text:
+                    for i, item in enumerate(extras_text.replace("\n", ",").split(",")[:2]):
+                        item = item.strip()
+                        if item:
+                            quests.append({"id": f"d_ex{i}", "title": item[:60], "type": "CUSTOM", "done": False, "xp": 100})
+        else:
+            for i, item in enumerate(fitness_text.split(",")[:3]):
+                item = item.strip()
+                if item:
+                    quests.append({"id": f"d_fit{i}", "title": item[:60], "type": "FITNESS", "done": False, "xp": 100})
+            if extras_text:
+                for i, item in enumerate(extras_text.replace("\n", ",").split(",")[:2]):
+                    item = item.strip()
+                    if item:
+                        quests.append({"id": f"d_ex{i}", "title": item[:60], "type": "CUSTOM", "done": False, "xp": 100})
 
         self.daily_quests = quests
 
@@ -799,6 +816,11 @@ class AppState(rx.State):
                     # -- OPEN VERIFY POPUP --
                     self.verify_quest_id = quest_id
                     self.verify_quest_type = q["type"]
+                    # FITNESS and CUSTOM skip the verify popup — complete instantly
+                    if q["type"] in ("FITNESS", "CUSTOM"):
+                        self.verify_link_1 = "__skip__"
+                        self.submit_quest_verify()
+                        return
                     self.verify_link_1 = "";  self.verify_link_2 = ""
                     self.verify_link_3 = "";  self.verify_error = ""
                 break
@@ -828,8 +850,8 @@ class AppState(rx.State):
                 q = {**q, "done": True}
                 self._award_xp(100)
                 self._stat_gain_for_type(qt, 2)
-                # 20% random dungeon key — truly random via os.urandom seed
-                if random.SystemRandom().random() < 0.20:
+                # 12.5% random dungeon key — truly random via os.urandom seed
+                if random.SystemRandom().random() < 0.125:
                     self.instance_dungeon_key_count += 1
                     self.show_key_popup = True
             updated.append(q)
