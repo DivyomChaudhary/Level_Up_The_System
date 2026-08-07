@@ -949,11 +949,62 @@ class AppState(rx.State):
     def set_new_add_quest_title(self, v: str):  self.new_add_quest_title = v
     def set_new_add_quest_type(self, v: str):   self.new_add_quest_type = v
 
+    # ── NLP QUEST CLASSIFIER (Todoist-style) ─────────────────────────
+    @staticmethod
+    def _classify_quest_from_text(title: str) -> tuple[str, str]:
+        """
+        Parse temporal keywords from title, return (mode, cleaned_title).
+        Priority: monthly > weekly > daily > original mode.
+        Strips the matched keyword from the title.
+        """
+        import re
+        t = title.lower()
+
+        monthly_patterns = [
+            r"\b(monthly|every month|each month|per month|once a month|"
+            r"once monthly|month(?:ly)?|end of month|eom)\b"
+        ]
+        weekly_patterns = [
+            r"\b(weekly|every week|each week|per week|once a week|"
+            r"once weekly|week(?:ly)?|end of week|eow)\b"
+        ]
+        daily_patterns = [
+            r"\b(daily|every day|each day|per day|a day|everyday|"
+            r"each morning|each night|every morning|every night|"
+            r"today|tonight)\b"
+        ]
+
+        for pat in monthly_patterns:
+            m = re.search(pat, t)
+            if m:
+                cleaned = re.sub(pat, "", title, flags=re.IGNORECASE).strip().strip(",").strip()
+                return "monthly", cleaned or title
+
+        for pat in weekly_patterns:
+            m = re.search(pat, t)
+            if m:
+                cleaned = re.sub(pat, "", title, flags=re.IGNORECASE).strip().strip(",").strip()
+                return "weekly", cleaned or title
+
+        for pat in daily_patterns:
+            m = re.search(pat, t)
+            if m:
+                cleaned = re.sub(pat, "", title, flags=re.IGNORECASE).strip().strip(",").strip()
+                return "daily", cleaned or title
+
+        return "", title  # No keyword found
+
     def submit_add_quest(self):
         title = self.new_add_quest_title.strip()
         if not title: return
         qtype = self.new_add_quest_type
-        mode = self.add_quest_mode
+        mode  = self.add_quest_mode
+
+        # NLP: detect temporal keyword in title → override mode
+        detected_mode, clean_title = self._classify_quest_from_text(title)
+        if detected_mode:
+            mode  = detected_mode
+            title = clean_title if clean_title else title
 
         if mode == "daily":
             new_id = f"d_custom_{len(self.daily_quests)}"
@@ -971,6 +1022,7 @@ class AppState(rx.State):
                 {"id": new_id, "title": title, "type": qtype, "done": False, "xp": 2000}
             ]
         self.close_add_quest_form()
+
 
     # ── PENALTY EVENTS ────────────────────────────────────────────────
 
